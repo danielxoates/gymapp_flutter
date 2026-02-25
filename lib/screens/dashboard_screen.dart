@@ -158,7 +158,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             // Quick stats row
             SizedBox(
-              height: 145,
+              height: 158,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
