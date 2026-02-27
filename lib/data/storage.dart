@@ -301,3 +301,118 @@ Future<Stats> getStats() async {
     );
   }
 }
+
+// ─── Exercise-specific history ──────────────────────────
+class ExerciseSetData {
+  final double weight;
+  final int reps;
+  final DateTime date;
+  final String workoutName;
+
+  ExerciseSetData({
+    required this.weight,
+    required this.reps,
+    required this.date,
+    required this.workoutName,
+  });
+}
+
+class ExerciseProgressData {
+  final String exerciseId;
+  final String exerciseName;
+  final List<ExerciseSetData> sets;
+  final double maxWeight;
+  final double totalVolume;
+  final int totalSets;
+  final int totalWorkouts;
+  final double avgWeight;
+  final double avgReps;
+  final DateTime? firstWorkout;
+  final DateTime? lastWorkout;
+
+  ExerciseProgressData({
+    required this.exerciseId,
+    required this.exerciseName,
+    required this.sets,
+    required this.maxWeight,
+    required this.totalVolume,
+    required this.totalSets,
+    required this.totalWorkouts,
+    required this.avgWeight,
+    required this.avgReps,
+    this.firstWorkout,
+    this.lastWorkout,
+  });
+}
+
+Future<ExerciseProgressData> getExerciseProgress(String exerciseId) async {
+  final allWorkouts = await getWorkouts();
+  final List<ExerciseSetData> allSets = [];
+  final Set<String> workoutIds = {};
+  
+  double totalVolume = 0;
+  double totalWeight = 0;
+  int totalReps = 0;
+  int setCount = 0;
+  double maxWeight = 0;
+  DateTime? firstWorkout;
+  DateTime? lastWorkout;
+  String exerciseName = '';
+
+  for (final workout in allWorkouts.reversed) {
+    for (final exercise in workout.exercises) {
+      if (exercise.exerciseId == exerciseId) {
+        final workoutDate = DateTime.parse(workout.date);
+        workoutIds.add(workout.id);
+        
+        if (exerciseName.isEmpty) {
+          exerciseName = exercise.name;
+        }
+        
+        if (firstWorkout == null || workoutDate.isBefore(firstWorkout)) {
+          firstWorkout = workoutDate;
+        }
+        if (lastWorkout == null || workoutDate.isAfter(lastWorkout)) {
+          lastWorkout = workoutDate;
+        }
+
+        for (final set in exercise.sets) {
+          final weight = double.tryParse(set.weight) ?? 0;
+          final reps = int.tryParse(set.reps) ?? 0;
+          
+          if (weight > 0 || reps > 0) {
+            allSets.add(ExerciseSetData(
+              weight: weight,
+              reps: reps,
+              date: workoutDate,
+              workoutName: workout.name,
+            ));
+            
+            if (weight > maxWeight) {
+              maxWeight = weight;
+            }
+            
+            totalVolume += weight * reps;
+            totalWeight += weight;
+            totalReps += reps;
+            setCount++;
+          }
+        }
+      }
+    }
+  }
+
+  return ExerciseProgressData(
+    exerciseId: exerciseId,
+    exerciseName: exerciseName,
+    sets: allSets,
+    maxWeight: maxWeight,
+    totalVolume: totalVolume,
+    totalSets: setCount,
+    totalWorkouts: workoutIds.length,
+    avgWeight: setCount > 0 ? totalWeight / setCount : 0,
+    avgReps: setCount > 0 ? totalReps / setCount : 0,
+    firstWorkout: firstWorkout,
+    lastWorkout: lastWorkout,
+  );
+}
