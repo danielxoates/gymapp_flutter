@@ -6,7 +6,9 @@ import '../data/exercises.dart';
 import '../data/storage.dart';
 
 class WorkoutScreen extends StatefulWidget {
-  const WorkoutScreen({super.key});
+  final Workout? existingWorkout;
+
+  const WorkoutScreen({super.key, this.existingWorkout});
 
   @override
   State<WorkoutScreen> createState() => _WorkoutScreenState();
@@ -29,6 +31,16 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void initState() {
     super.initState();
     _loadExercises();
+
+    // If editing an existing workout, pre-populate data
+    if (widget.existingWorkout != null) {
+      isActive = true;
+      workoutName = widget.existingWorkout!.name;
+      _nameController.text = widget.existingWorkout!.name;
+      exercises = widget.existingWorkout!.exercises;
+      elapsed = widget.existingWorkout!.duration;
+      _startTimer();
+    }
   }
 
   Future<void> _loadExercises() async {
@@ -83,10 +95,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
-        title: const Text('Finish Workout',
-            style: TextStyle(color: AppTheme.text)),
-        content: const Text('Save this workout?',
-            style: TextStyle(color: AppTheme.textSecondary)),
+        title: const Text(
+          'Finish Workout',
+          style: TextStyle(color: AppTheme.text),
+        ),
+        content: const Text(
+          'Save this workout?',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -96,34 +112,57 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               _stopTimer();
+
+              // Check if we're editing or creating new
+              final isEditing = widget.existingWorkout != null;
               final workout = Workout(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                date: DateTime.now().toIso8601String(),
+                id: isEditing
+                    ? widget.existingWorkout!.id
+                    : DateTime.now().millisecondsSinceEpoch.toString(),
+                date: isEditing
+                    ? widget.existingWorkout!.date
+                    : DateTime.now().toIso8601String(),
                 name: workoutName.isEmpty ? 'Workout' : workoutName,
                 duration: elapsed,
                 exercises: exercises
-                    .map((e) => WorkoutExercise(
-                          exerciseId: e.exerciseId,
-                          name: e.name,
-                          muscle: e.muscle,
-                          sets: e.sets
-                              .where((s) =>
-                                  s.weight.isNotEmpty || s.reps.isNotEmpty)
-                              .toList(),
-                        ))
+                    .map(
+                      (e) => WorkoutExercise(
+                        exerciseId: e.exerciseId,
+                        name: e.name,
+                        muscle: e.muscle,
+                        sets: e.sets
+                            .where(
+                              (s) => s.weight.isNotEmpty || s.reps.isNotEmpty,
+                            )
+                            .toList(),
+                      ),
+                    )
                     .toList(),
               );
-              await saveWorkout(workout);
+
+              if (isEditing) {
+                await updateWorkout(workout);
+              } else {
+                await saveWorkout(workout);
+              }
+
               if (mounted) {
                 setState(() {
                   isActive = false;
                   exercises = [];
                 });
-                _showAlert('Saved! 🎉', 'Workout logged successfully.');
+                _showAlert(
+                  'Saved! 🎉',
+                  isEditing
+                      ? 'Workout updated successfully.'
+                      : 'Workout logged successfully.',
+                );
               }
             },
-            child:
-                const Text('Save', style: TextStyle(color: AppTheme.success)),
+            child: const Text(
+              'Save',
+              style: TextStyle(color: AppTheme.success),
+            ),
           ),
         ],
       ),
@@ -135,10 +174,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
-        title: const Text('Discard Workout?',
-            style: TextStyle(color: AppTheme.text)),
-        content: const Text('All progress will be lost.',
-            style: TextStyle(color: AppTheme.textSecondary)),
+        title: const Text(
+          'Discard Workout?',
+          style: TextStyle(color: AppTheme.text),
+        ),
+        content: const Text(
+          'All progress will be lost.',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -153,8 +196,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 exercises = [];
               });
             },
-            child: const Text('Discard',
-                style: TextStyle(color: AppTheme.danger)),
+            child: const Text(
+              'Discard',
+              style: TextStyle(color: AppTheme.danger),
+            ),
           ),
         ],
       ),
@@ -163,12 +208,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   void _addExerciseToWorkout(Exercise exercise) {
     setState(() {
-      exercises.add(WorkoutExercise(
-        exerciseId: exercise.id,
-        name: exercise.name,
-        muscle: exercise.muscle,
-        sets: [WorkoutSet(weight: '', reps: '')],
-      ));
+      exercises.add(
+        WorkoutExercise(
+          exerciseId: exercise.id,
+          name: exercise.name,
+          muscle: exercise.muscle,
+          sets: [WorkoutSet(weight: '', reps: '')],
+        ),
+      );
     });
     Navigator.pop(context);
   }
@@ -184,10 +231,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       final lastSet = exercises[exerciseIndex].sets.isNotEmpty
           ? exercises[exerciseIndex].sets.last
           : null;
-      exercises[exerciseIndex].sets.add(WorkoutSet(
-        weight: lastSet?.weight ?? '',
-        reps: lastSet?.reps ?? '',
-      ));
+      exercises[exerciseIndex].sets.add(
+        WorkoutSet(weight: lastSet?.weight ?? '', reps: lastSet?.reps ?? ''),
+      );
     });
   }
 
@@ -214,8 +260,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
         title: Text(title, style: const TextStyle(color: AppTheme.text)),
-        content: Text(message,
-            style: const TextStyle(color: AppTheme.textSecondary)),
+        content: Text(
+          message,
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -237,8 +285,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           final pickerExercises = pickerFilter == 'All'
               ? allExercisesList
               : allExercisesList
-                  .where((e) => e.muscle == pickerFilter)
-                  .toList();
+                    .where((e) => e.muscle == pickerFilter)
+                    .toList();
 
           return Container(
             constraints: BoxConstraints(
@@ -267,8 +315,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pop(ctx),
-                        child: const Icon(Icons.close,
-                            size: 24, color: AppTheme.textSecondary),
+                        child: const Icon(
+                          Icons.close,
+                          size: 24,
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -278,15 +329,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingLg),
+                      horizontal: AppTheme.spacingLg,
+                    ),
                     children: muscleGroups
-                        .map((m) => AppChip(
-                              label: m,
-                              color: muscleColors[m],
-                              selected: pickerFilter == m,
-                              onTap: () =>
-                                  setModalState(() => pickerFilter = m),
-                            ))
+                        .map(
+                          (m) => AppChip(
+                            label: m,
+                            color: muscleColors[m],
+                            selected: pickerFilter == m,
+                            onTap: () => setModalState(() => pickerFilter = m),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
@@ -294,7 +347,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingLg),
+                      horizontal: AppTheme.spacingLg,
+                    ),
                     itemCount: pickerExercises.length,
                     itemBuilder: (context, index) {
                       final item = pickerExercises[index];
@@ -315,8 +369,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       item.name,
@@ -337,8 +390,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.add_circle,
-                                  size: 22, color: AppTheme.primary),
+                              const Icon(
+                                Icons.add_circle,
+                                size: 22,
+                                color: AppTheme.primary,
+                              ),
                             ],
                           ),
                         ),
@@ -373,8 +429,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     color: AppTheme.primary.withAlpha(21),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.fitness_center,
-                      size: 64, color: AppTheme.primary),
+                  child: const Icon(
+                    Icons.fitness_center,
+                    size: 64,
+                    color: AppTheme.primary,
+                  ),
                 ),
                 const SizedBox(height: AppTheme.spacingLg),
                 const Text(
@@ -430,21 +489,28 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               children: [
                 GestureDetector(
                   onTap: _handleCancel,
-                  child: const Icon(Icons.close,
-                      size: 26, color: AppTheme.danger),
+                  child: const Icon(
+                    Icons.close,
+                    size: 26,
+                    color: AppTheme.danger,
+                  ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.bgCard,
-                    borderRadius:
-                        BorderRadius.circular(AppTheme.radiusFull),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.access_time_outlined,
-                          size: 18, color: AppTheme.primary),
+                      const Icon(
+                        Icons.access_time_outlined,
+                        size: 18,
+                        color: AppTheme.primary,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         _formatTime(elapsed),
@@ -460,8 +526,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
                 GestureDetector(
                   onTap: _handleFinish,
-                  child: const Icon(Icons.check_circle,
-                      size: 30, color: AppTheme.success),
+                  child: const Icon(
+                    Icons.check_circle,
+                    size: 30,
+                    color: AppTheme.success,
+                  ),
                 ),
               ],
             ),
@@ -469,8 +538,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
           // Workout name
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
             child: AppInput(
               placeholder: 'Workout name (e.g. Push Day)',
               controller: _nameController,
@@ -514,7 +582,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                         width: 10,
                                         height: 10,
                                         decoration: BoxDecoration(
-                                          color: muscleColors[ex.muscle] ??
+                                          color:
+                                              muscleColors[ex.muscle] ??
                                               AppTheme.primary,
                                           shape: BoxShape.circle,
                                         ),
@@ -532,8 +601,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   ),
                                   GestureDetector(
                                     onTap: () => _removeExercise(ei),
-                                    child: const Icon(Icons.delete_outline,
-                                        size: 18, color: AppTheme.danger),
+                                    child: const Icon(
+                                      Icons.delete_outline,
+                                      size: 18,
+                                      color: AppTheme.danger,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -544,28 +616,34 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 children: [
                                   const SizedBox(
                                     width: 40,
-                                    child: Text('SET',
-                                        style: TextStyle(
-                                          color: AppTheme.textMuted,
-                                          fontSize: AppTheme.fontXs,
-                                          fontWeight: FontWeight.w600,
-                                        )),
+                                    child: Text(
+                                      'SET',
+                                      style: TextStyle(
+                                        color: AppTheme.textMuted,
+                                        fontSize: AppTheme.fontXs,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                   const Expanded(
-                                    child: Text('WEIGHT (KG)',
-                                        style: TextStyle(
-                                          color: AppTheme.textMuted,
-                                          fontSize: AppTheme.fontXs,
-                                          fontWeight: FontWeight.w600,
-                                        )),
+                                    child: Text(
+                                      'WEIGHT (KG)',
+                                      style: TextStyle(
+                                        color: AppTheme.textMuted,
+                                        fontSize: AppTheme.fontXs,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                   const Expanded(
-                                    child: Text('REPS',
-                                        style: TextStyle(
-                                          color: AppTheme.textMuted,
-                                          fontSize: AppTheme.fontXs,
-                                          fontWeight: FontWeight.w600,
-                                        )),
+                                    child: Text(
+                                      'REPS',
+                                      style: TextStyle(
+                                        color: AppTheme.textMuted,
+                                        fontSize: AppTheme.fontXs,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(width: 30),
                                 ],
@@ -575,20 +653,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                               // Sets
                               ...List.generate(ex.sets.length, (si) {
                                 return Padding(
-                                  padding:
-                                      const EdgeInsets.only(bottom: 4),
+                                  padding: const EdgeInsets.only(bottom: 4),
                                   child: Row(
                                     children: [
                                       Container(
                                         width: 32,
                                         height: 32,
-                                        margin: const EdgeInsets.only(
-                                            right: 8),
+                                        margin: const EdgeInsets.only(right: 8),
                                         decoration: BoxDecoration(
                                           color: AppTheme.bgInput,
-                                          borderRadius:
-                                              BorderRadius.circular(
-                                                  AppTheme.radiusSm),
+                                          borderRadius: BorderRadius.circular(
+                                            AppTheme.radiusSm,
+                                          ),
                                         ),
                                         alignment: Alignment.center,
                                         child: Text(
@@ -604,8 +680,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                         child: _SetInputField(
                                           value: ex.sets[si].weight,
                                           placeholder: '0',
-                                          onChanged: (v) => _updateSet(
-                                              ei, si, 'weight', v),
+                                          onChanged: (v) =>
+                                              _updateSet(ei, si, 'weight', v),
                                         ),
                                       ),
                                       const SizedBox(width: 6),
@@ -613,18 +689,16 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                         child: _SetInputField(
                                           value: ex.sets[si].reps,
                                           placeholder: '0',
-                                          onChanged: (v) => _updateSet(
-                                              ei, si, 'reps', v),
+                                          onChanged: (v) =>
+                                              _updateSet(ei, si, 'reps', v),
                                         ),
                                       ),
                                       SizedBox(
                                         width: 30,
                                         child: GestureDetector(
-                                          onTap: () =>
-                                              _removeSet(ei, si),
+                                          onTap: () => _removeSet(ei, si),
                                           child: const Icon(
-                                            Icons
-                                                .remove_circle_outline,
+                                            Icons.remove_circle_outline,
                                             size: 20,
                                             color: AppTheme.textMuted,
                                           ),
@@ -638,23 +712,22 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                               // Add set button
                               Container(
                                 margin: const EdgeInsets.only(top: 6),
-                                padding:
-                                    const EdgeInsets.only(top: 8),
+                                padding: const EdgeInsets.only(top: 8),
                                 decoration: const BoxDecoration(
                                   border: Border(
-                                    top: BorderSide(
-                                        color: AppTheme.divider),
+                                    top: BorderSide(color: AppTheme.divider),
                                   ),
                                 ),
                                 child: GestureDetector(
                                   onTap: () => _addSet(ei),
                                   child: const Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.add,
-                                          size: 16,
-                                          color: AppTheme.primary),
+                                      Icon(
+                                        Icons.add,
+                                        size: 16,
+                                        color: AppTheme.primary,
+                                      ),
                                       SizedBox(width: 4),
                                       Text(
                                         'Add Set',
@@ -681,9 +754,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             padding: const EdgeInsets.all(AppTheme.spacingMd),
             decoration: const BoxDecoration(
               color: AppTheme.bgCard,
-              border: Border(
-                top: BorderSide(color: AppTheme.border),
-              ),
+              border: Border(top: BorderSide(color: AppTheme.border)),
             ),
             child: SafeArea(
               top: false,
@@ -767,17 +838,13 @@ class _SetInputFieldState extends State<_SetInputField> {
       controller: _controller,
       onChanged: widget.onChanged,
       keyboardType: TextInputType.number,
-      style: const TextStyle(
-        color: AppTheme.text,
-        fontSize: AppTheme.fontMd,
-      ),
+      style: const TextStyle(color: AppTheme.text, fontSize: AppTheme.fontMd),
       decoration: InputDecoration(
         hintText: widget.placeholder,
         hintStyle: const TextStyle(color: AppTheme.textMuted),
         filled: true,
         fillColor: AppTheme.bgInput,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         isDense: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),

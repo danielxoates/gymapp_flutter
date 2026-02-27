@@ -3,6 +3,7 @@ import '../theme.dart';
 import '../components/ui.dart';
 import '../data/storage.dart';
 import '../data/exercises.dart';
+import 'workout_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -30,10 +31,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.bgCard,
-        title: const Text('Delete Workout',
-            style: TextStyle(color: AppTheme.text)),
-        content: Text('Remove "${workout.name}"?',
-            style: const TextStyle(color: AppTheme.textSecondary)),
+        title: const Text(
+          'Delete Workout',
+          style: TextStyle(color: AppTheme.text),
+        ),
+        content: Text(
+          'Remove "${workout.name}"?',
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -45,25 +50,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
               final updated = await deleteWorkout(workout.id);
               setState(() => workouts = updated);
             },
-            child: const Text('Delete',
-                style: TextStyle(color: AppTheme.danger)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: AppTheme.danger),
+            ),
           ),
         ],
       ),
     );
   }
 
+  void _handleEdit(Workout workout) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WorkoutScreen(existingWorkout: workout),
+      ),
+    );
+    // Reload workouts after returning from edit
+    _load();
+  }
+
   int _totalSets(Workout w) =>
       w.exercises.fold(0, (sum, e) => sum + e.sets.length);
 
   double _totalVolume(Workout w) => w.exercises.fold(0.0, (sum, e) {
-        return sum +
-            e.sets.fold(0.0, (s, set) {
-              final weight = double.tryParse(set.weight) ?? 0;
-              final reps = int.tryParse(set.reps) ?? 0;
-              return s + (weight * reps);
-            });
-      });
+    return sum +
+        e.sets.fold(0.0, (s, set) {
+          final weight = double.tryParse(set.weight) ?? 0;
+          final reps = int.tryParse(set.reps) ?? 0;
+          return s + (weight * reps);
+        });
+  });
 
   // Group workouts by month
   Map<String, List<Workout>> get grouped {
@@ -72,8 +90,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
       try {
         final d = DateTime.parse(w.date);
         const months = [
-          'January', 'February', 'March', 'April', 'May', 'June',
-          'July', 'August', 'September', 'October', 'November', 'December'
+          'January',
+          'February',
+          'March',
+          'April',
+          'May',
+          'June',
+          'July',
+          'August',
+          'September',
+          'October',
+          'November',
+          'December',
         ];
         final key = '${months[d.month - 1]} ${d.year}';
         result.putIfAbsent(key, () => []).add(w);
@@ -87,8 +115,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final d = DateTime.parse(isoDate);
       const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       final h = d.hour.toString().padLeft(2, '0');
       final m = d.minute.toString().padLeft(2, '0');
@@ -201,77 +239,105 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Container(
                   padding: const EdgeInsets.only(bottom: 10),
                   decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: AppTheme.divider),
-                    ),
+                    border: Border(bottom: BorderSide(color: AppTheme.divider)),
                   ),
                   child: Row(
                     children: [
-                      _quickStat(Icons.access_time_outlined,
-                          workout.duration > 0 ? '${(workout.duration / 60).round()} min' : '--'),
+                      _quickStat(
+                        Icons.access_time_outlined,
+                        workout.duration > 0
+                            ? '${(workout.duration / 60).round()} min'
+                            : '--',
+                      ),
                       const SizedBox(width: 18),
                       _quickStat(
-                          Icons.layers_outlined, '${_totalSets(workout)} sets'),
+                        Icons.layers_outlined,
+                        '${_totalSets(workout)} sets',
+                      ),
                       const SizedBox(width: 18),
-                      _quickStat(Icons.trending_up_outlined,
-                          '${_formatVolume(_totalVolume(workout))} kg'),
+                      _quickStat(
+                        Icons.trending_up_outlined,
+                        '${_formatVolume(_totalVolume(workout))} kg',
+                      ),
                     ],
                   ),
                 ),
 
                 // Exercises
                 const SizedBox(height: 6),
-                ...workout.exercises.map((ex) => Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: muscleColors[ex.muscle] ??
-                                  AppTheme.primary,
-                              shape: BoxShape.circle,
-                            ),
+                ...workout.exercises.map(
+                  (ex) => Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: muscleColors[ex.muscle] ?? AppTheme.primary,
+                            shape: BoxShape.circle,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              ex.name,
-                              style: const TextStyle(
-                                color: AppTheme.text,
-                                fontSize: AppTheme.fontSm,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            ex.sets
-                                .map((s) =>
-                                    '${s.weight.isEmpty ? '0' : s.weight}×${s.reps.isEmpty ? '0' : s.reps}')
-                                .join(', '),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            ex.name,
                             style: const TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: AppTheme.fontXs,
+                              color: AppTheme.text,
+                              fontSize: AppTheme.fontSm,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ],
-                      ),
-                    )),
+                        ),
+                        Text(
+                          ex.sets
+                              .map(
+                                (s) =>
+                                    '${s.weight.isEmpty ? '0' : s.weight}×${s.reps.isEmpty ? '0' : s.reps}',
+                              )
+                              .join(', '),
+                          style: const TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: AppTheme.fontXs,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
 
-            // Delete button
+            // Action buttons
             Positioned(
               top: 0,
               right: 0,
-              child: GestureDetector(
-                onTap: () => _handleDelete(workout),
-                child: const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(Icons.delete_outline,
-                      size: 16, color: AppTheme.danger),
-                ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => _handleEdit(workout),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        size: 16,
+                        color: AppTheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _handleDelete(workout),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.delete_outline,
+                        size: 16,
+                        color: AppTheme.danger,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

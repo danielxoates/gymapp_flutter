@@ -29,9 +29,9 @@ class WorkoutSet {
   Map<String, dynamic> toJson() => {'weight': weight, 'reps': reps};
 
   factory WorkoutSet.fromJson(Map<String, dynamic> json) => WorkoutSet(
-        weight: json['weight']?.toString() ?? '',
-        reps: json['reps']?.toString() ?? '',
-      );
+    weight: json['weight']?.toString() ?? '',
+    reps: json['reps']?.toString() ?? '',
+  );
 }
 
 class WorkoutExercise {
@@ -48,18 +48,19 @@ class WorkoutExercise {
   });
 
   Map<String, dynamic> toJson() => {
-        'exerciseId': exerciseId,
-        'name': name,
-        'muscle': muscle,
-        'sets': sets.map((s) => s.toJson()).toList(),
-      };
+    'exerciseId': exerciseId,
+    'name': name,
+    'muscle': muscle,
+    'sets': sets.map((s) => s.toJson()).toList(),
+  };
 
   factory WorkoutExercise.fromJson(Map<String, dynamic> json) =>
       WorkoutExercise(
         exerciseId: json['exerciseId'] ?? '',
         name: json['name'] ?? '',
         muscle: json['muscle'] ?? '',
-        sets: (json['sets'] as List?)
+        sets:
+            (json['sets'] as List?)
                 ?.map((s) => WorkoutSet.fromJson(s))
                 .toList() ??
             [],
@@ -82,23 +83,24 @@ class Workout {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'date': date,
-        'name': name,
-        'duration': duration,
-        'exercises': exercises.map((e) => e.toJson()).toList(),
-      };
+    'id': id,
+    'date': date,
+    'name': name,
+    'duration': duration,
+    'exercises': exercises.map((e) => e.toJson()).toList(),
+  };
 
   factory Workout.fromJson(Map<String, dynamic> json) => Workout(
-        id: json['id']?.toString() ?? '',
-        date: json['date'] ?? '',
-        name: json['name'] ?? 'Workout',
-        duration: json['duration'] ?? 0,
-        exercises: (json['exercises'] as List?)
-                ?.map((e) => WorkoutExercise.fromJson(e))
-                .toList() ??
-            [],
-      );
+    id: json['id']?.toString() ?? '',
+    date: json['date'] ?? '',
+    name: json['name'] ?? 'Workout',
+    duration: json['duration'] ?? 0,
+    exercises:
+        (json['exercises'] as List?)
+            ?.map((e) => WorkoutExercise.fromJson(e))
+            .toList() ??
+        [],
+  );
 }
 
 Future<List<Workout>> getWorkouts() async {
@@ -118,6 +120,16 @@ Future<List<Workout>> deleteWorkout(String id) async {
   final all = await getWorkouts();
   all.removeWhere((w) => w.id == id);
   await _setJSON(_keyWorkouts, all.map((w) => w.toJson()).toList());
+  return all;
+}
+
+Future<List<Workout>> updateWorkout(Workout workout) async {
+  final all = await getWorkouts();
+  final index = all.indexWhere((w) => w.id == workout.id);
+  if (index != -1) {
+    all[index] = workout;
+    await _setJSON(_keyWorkouts, all.map((w) => w.toJson()).toList());
+  }
   return all;
 }
 
@@ -197,8 +209,11 @@ Future<Stats> getStats() async {
         : allWorkouts;
 
     final now = DateTime.now();
-    final startOfWeek =
-        DateTime(now.year, now.month, now.day - now.weekday % 7);
+    final startOfWeek = DateTime(
+      now.year,
+      now.month,
+      now.day - now.weekday % 7,
+    );
 
     final thisWeek = workouts
         .where((w) => DateTime.parse(w.date).isAfter(startOfWeek))
@@ -220,12 +235,10 @@ Future<Stats> getStats() async {
 
     // Streak
     int streak = 0;
-    final daySet = workouts
-        .map((w) {
-          final d = DateTime.parse(w.date);
-          return DateTime(d.year, d.month, d.day).toString();
-        })
-        .toSet();
+    final daySet = workouts.map((w) {
+      final d = DateTime.parse(w.date);
+      return DateTime(d.year, d.month, d.day).toString();
+    }).toSet();
 
     var d = DateTime(now.year, now.month, now.day);
     int iterations = 0;
