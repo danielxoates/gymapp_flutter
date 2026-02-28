@@ -3,6 +3,7 @@ import '../theme.dart';
 import '../components/ui.dart';
 import '../data/exercises.dart';
 import '../data/storage.dart';
+import 'exercise_progress_screen.dart';
 
 class ExercisesScreen extends StatefulWidget {
   const ExercisesScreen({super.key});
@@ -347,9 +348,15 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: AppCard(
-                          onTap: item.custom
-                              ? () => _handleDelete(item)
-                              : null,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ExerciseProgressScreen(exercise: item),
+                              ),
+                            );
+                          },
                           padding: const EdgeInsets.all(12),
                           child: Row(
                             children: [
@@ -389,9 +396,23 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
                                   ],
                                 ),
                               ),
-                              if (item.custom)
-                                const Icon(Icons.delete_outline,
-                                    size: 18, color: AppTheme.danger),
+                              Row(
+                                children: [
+                                  if (item.custom)
+                                    GestureDetector(
+                                      onTap: () {
+                                        _handleDelete(item);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        child: const Icon(Icons.delete_outline,
+                                            size: 18, color: AppTheme.danger),
+                                      ),
+                                    ),
+                                  const Icon(Icons.show_chart,
+                                      size: 18, color: AppTheme.textMuted),
+                                ],
+                              ),
                             ],
                           ),
                         ),

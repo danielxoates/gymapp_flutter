@@ -46,7 +46,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll down to see sections below the fold
-      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.drag(find.byType(ListView).first, const Offset(0, -500));
       await tester.pumpAndSettle();
 
       expect(find.text('No data yet'), findsOneWidget);
@@ -99,7 +99,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll down to see sections below the fold
-      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.drag(find.byType(ListView).first, const Offset(0, -500));
       await tester.pumpAndSettle();
 
       expect(find.text('Recent Workouts'), findsOneWidget);
@@ -159,7 +159,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Scroll down to see the personal records section
-        await tester.drag(find.byType(ListView), const Offset(0, -800));
+        await tester.drag(find.byType(ListView).first, const Offset(0, -800));
         await tester.pumpAndSettle();
 
         expect(find.text('Personal Records 🏆'), findsOneWidget);

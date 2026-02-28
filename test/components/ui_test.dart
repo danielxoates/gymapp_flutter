@@ -197,6 +197,7 @@ void main() {
     });
 
     testWidgets('does not call onPressed when loading', (tester) async {
+      // ignore: unused_local_variable
       bool pressed = false;
       await tester.pumpWidget(testApp(
         AppButton(
