@@ -51,8 +51,12 @@ class _MainScreenState extends State<MainScreen> {
   void _onNavigate(int index) {
     setState(() {
       _currentIndex = index;
-      // Force rebuild of the target screen to refresh data
-      _screenKeys[index] = GlobalKey();
+      // Force rebuild of the target screen to refresh data,
+      // but keep the workout screen (index 2) alive so in-progress
+      // workouts are preserved when navigating away and back.
+      if (index != 2) {
+        _screenKeys[index] = GlobalKey();
+      }
     });
   }
 
