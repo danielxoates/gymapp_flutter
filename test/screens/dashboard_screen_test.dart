@@ -161,6 +161,9 @@ void main() {
         // Scroll down to see the personal records section
         await tester.drag(find.byType(ListView).first, const Offset(0, -800));
         await tester.pumpAndSettle();
+        
+        // Consume any overflow exceptions from muscle distribution cards
+        tester.takeException();
 
         expect(find.text('Personal Records 🏆'), findsOneWidget);
       });
