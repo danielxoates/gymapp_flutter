@@ -188,14 +188,14 @@ void main() {
         expect(find.byIcon(Icons.delete_outline), findsOneWidget);
       });
 
-      testWidgets('tapping custom exercise shows delete dialog', (tester) async {
+      testWidgets('tapping delete icon shows delete dialog', (tester) async {
         await tester.pumpWidget(testApp(const ExercisesScreen()));
         await tester.pumpAndSettle();
 
         await tester.enterText(find.byType(TextField), 'Zercher');
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Zercher Squat'));
+        await tester.tap(find.byIcon(Icons.delete_outline));
         await tester.pumpAndSettle();
 
         expect(find.text('Delete Exercise'), findsOneWidget);
