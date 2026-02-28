@@ -363,7 +363,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (stats!.personalRecords.isNotEmpty) ...[
               const SectionHeader(title: 'Personal Records 🏆'),
               SizedBox(
-                height: 110,
+                height: 152,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: (stats!.personalRecords.values.toList()
