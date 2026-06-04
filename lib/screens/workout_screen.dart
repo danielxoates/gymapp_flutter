@@ -20,6 +20,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   List<WorkoutExercise> exercises = [];
   List<Exercise> allExercisesList = List.from(builtinExercises);
   String pickerFilter = 'All';
+  Map<String, WorkoutExercise> previousData = {};
 
   Timer? _timer;
   int elapsed = 0;
@@ -40,6 +41,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       exercises = widget.existingWorkout!.exercises;
       elapsed = widget.existingWorkout!.duration;
       _startTimer();
+      for (final ex in exercises) {
+        _loadPreviousData(ex.exerciseId);
+      }
     }
   }
 
@@ -217,7 +221,21 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         ),
       );
     });
+    _loadPreviousData(exercise.id);
     Navigator.pop(context);
+  }
+
+  Future<void> _loadPreviousData(String exerciseId) async {
+    if (previousData.containsKey(exerciseId)) return;
+    final last = await getLastExerciseData(
+      exerciseId,
+      excludeWorkoutId: widget.existingWorkout?.id,
+    );
+    if (last != null && mounted) {
+      setState(() {
+        previousData[exerciseId] = last;
+      });
+    }
   }
 
   void _removeExercise(int index) {
@@ -609,6 +627,31 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   ),
                                 ],
                               ),
+                              // Previous session info
+                              if (previousData.containsKey(ex.exerciseId))
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4, bottom: 6),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.history,
+                                        size: 14,
+                                        color: AppTheme.textMuted,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          'Last: ${previousData[ex.exerciseId]!.sets.map((s) => '${s.weight}kg × ${s.reps}').join(', ')}',
+                                          style: const TextStyle(
+                                            color: AppTheme.textMuted,
+                                            fontSize: AppTheme.fontXs,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               const SizedBox(height: 10),
 
                               // Set headers

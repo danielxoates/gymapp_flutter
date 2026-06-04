@@ -151,10 +151,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return Scaffold(
         backgroundColor: AppTheme.bg,
         body: SafeArea(
-          child: const EmptyState(
-            icon: Icons.description_outlined,
-            title: 'No workout history',
-            subtitle: 'Complete your first workout to see it here',
+          child: Column(
+            children: [
+              _buildTopBar(),
+              const Expanded(
+                child: EmptyState(
+                  icon: Icons.description_outlined,
+                  title: 'No workout history',
+                  subtitle: 'Complete your first workout to see it here',
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -171,9 +178,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
           AppTheme.spacingMd,
           40,
         ),
-        itemCount: sections.length,
-        itemBuilder: (context, sectionIndex) {
-          final section = sections[sectionIndex];
+        itemCount: sections.length + 1, // +1 for the top bar
+        itemBuilder: (context, index) {
+          if (index == 0) return _buildTopBar();
+          final section = sections[index - 1];
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -197,6 +205,116 @@ class _HistoryScreenState extends State<HistoryScreen> {
         },
       ),
     );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _buildActionButton(
+            icon: Icons.file_upload_outlined,
+            label: 'Import',
+            onTap: _handleImport,
+          ),
+          const SizedBox(width: 10),
+          _buildActionButton(
+            icon: Icons.file_download_outlined,
+            label: 'Export',
+            onTap: _handleExport,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.bgCard,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: AppTheme.primary),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.text,
+                fontSize: AppTheme.fontSm,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleExport() async {
+    try {
+      await shareExportFile();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleImport() async {
+    try {
+      final result = await importWorkouts();
+      if (result == null) return; // user cancelled
+
+      await _load();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Imported ${result.workoutsImported} workout(s), '
+              '${result.exercisesImported} exercise(s). '
+              '${result.workoutsSkipped} duplicate(s) skipped.',
+            ),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      }
+    } on FormatException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import failed: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildWorkoutCard(Workout workout) {

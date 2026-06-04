@@ -1,5 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'exercises.dart';
 
 const _keyWorkouts = '@gym_workouts';
@@ -131,6 +135,24 @@ Future<List<Workout>> updateWorkout(Workout workout) async {
     await _setJSON(_keyWorkouts, all.map((w) => w.toJson()).toList());
   }
   return all;
+}
+
+/// Returns the most recent [WorkoutExercise] for [exerciseId], or null.
+/// Optionally pass [excludeWorkoutId] to skip the workout being edited.
+Future<WorkoutExercise?> getLastExerciseData(
+  String exerciseId, {
+  String? excludeWorkoutId,
+}) async {
+  final all = await getWorkouts();
+  for (final w in all) {
+    if (w.id == excludeWorkoutId) continue;
+    for (final ex in w.exercises) {
+      if (ex.exerciseId == exerciseId && ex.sets.isNotEmpty) {
+        return ex;
+      }
+    }
+  }
+  return null;
 }
 
 // ─── Custom exercises ────────────────────────────────────
@@ -414,5 +436,113 @@ Future<ExerciseProgressData> getExerciseProgress(String exerciseId) async {
     avgReps: setCount > 0 ? totalReps / setCount : 0,
     firstWorkout: firstWorkout,
     lastWorkout: lastWorkout,
+  );
+}
+
+// ─── Import / Export ─────────────────────────────────────
+Future<File> exportWorkouts() async {
+  final workouts = await getWorkouts();
+  final customExercises = await getCustomExercises();
+  final profile = await getProfile();
+
+  final exportData = {
+    'version': 1,
+    'exportedAt': DateTime.now().toIso8601String(),
+    'workouts': workouts.map((w) => w.toJson()).toList(),
+    'customExercises': customExercises.map((e) => e.toJson()).toList(),
+    'profile': profile,
+  };
+
+  final dir = await getTemporaryDirectory();
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final file = File('${dir.path}/gym_tracker_export_$timestamp.json');
+  await file.writeAsString(jsonEncode(exportData));
+  return file;
+}
+
+Future<void> shareExportFile() async {
+  final file = await exportWorkouts();
+  await Share.shareXFiles([XFile(file.path)]);
+}
+
+class ImportResult {
+  final int workoutsImported;
+  final int exercisesImported;
+  final int workoutsSkipped;
+
+  ImportResult({
+    required this.workoutsImported,
+    required this.exercisesImported,
+    required this.workoutsSkipped,
+  });
+}
+
+Future<ImportResult?> importWorkouts() async {
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['json'],
+  );
+
+  if (result == null || result.files.isEmpty) return null;
+
+  final filePath = result.files.single.path;
+  if (filePath == null) return null;
+
+  final contents = await File(filePath).readAsString();
+  final data = jsonDecode(contents) as Map<String, dynamic>;
+
+  // Validate structure
+  if (!data.containsKey('workouts') || data['workouts'] is! List) {
+    throw const FormatException('Invalid export file: missing workouts array');
+  }
+
+  final importedWorkouts = (data['workouts'] as List)
+      .map((w) => Workout.fromJson(w as Map<String, dynamic>))
+      .toList();
+
+  // Merge with existing workouts, skip duplicates by id
+  final existing = await getWorkouts();
+  final existingIds = existing.map((w) => w.id).toSet();
+  int skipped = 0;
+  int added = 0;
+
+  for (final workout in importedWorkouts) {
+    if (existingIds.contains(workout.id)) {
+      skipped++;
+    } else {
+      existing.add(workout);
+      added++;
+    }
+  }
+
+  // Sort newest first
+  existing.sort((a, b) => b.date.compareTo(a.date));
+  await _setJSON(_keyWorkouts, existing.map((w) => w.toJson()).toList());
+
+  // Import custom exercises if present
+  int exercisesAdded = 0;
+  if (data.containsKey('customExercises') && data['customExercises'] is List) {
+    final importedExercises = (data['customExercises'] as List)
+        .map((e) => Exercise.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    final existingExercises = await getCustomExercises();
+    final existingExIds = existingExercises.map((e) => e.id).toSet();
+
+    for (final exercise in importedExercises) {
+      if (!existingExIds.contains(exercise.id)) {
+        existingExercises.add(exercise);
+        exercisesAdded++;
+      }
+    }
+
+    await _setJSON(
+        _keyCustomExercises, existingExercises.map((e) => e.toJson()).toList());
+  }
+
+  return ImportResult(
+    workoutsImported: added,
+    exercisesImported: exercisesAdded,
+    workoutsSkipped: skipped,
   );
 }
