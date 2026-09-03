@@ -35,7 +35,23 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
     if (mounted) setState(() => customExercises = data);
   }
 
-  List<Exercise> get allExercises => [...builtinExercises, ...customExercises];
+  List<Exercise> get allExercises {
+    final combined = [...builtinExercises, ...customExercises];
+
+    // Sort by muscle group (using muscleGroups order), then category, then name
+    combined.sort((a, b) {
+      final ia = muscleGroups.indexOf(a.muscle);
+      final ib = muscleGroups.indexOf(b.muscle);
+      final ja = ia == -1 ? muscleGroups.length : ia;
+      final jb = ib == -1 ? muscleGroups.length : ib;
+      if (ja != jb) return ja.compareTo(jb);
+      final catCmp = a.category.compareTo(b.category);
+      if (catCmp != 0) return catCmp;
+      return a.name.compareTo(b.name);
+    });
+
+    return combined;
+  }
 
   List<Exercise> get filtered => allExercises.where((e) {
         if (selectedMuscle != 'All' && e.muscle != selectedMuscle) return false;
@@ -62,11 +78,13 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
       icon: Icons.create_outlined,
       custom: true,
     );
-    await addCustomExercise(exercise);
-    setState(() {
-      customExercises = [...customExercises, exercise];
-      newName = '';
-    });
+    final updated = await addCustomExercise(exercise);
+    if (mounted) {
+      setState(() {
+        customExercises = updated;
+        newName = '';
+      });
+    }
     if (mounted) Navigator.of(context).pop();
   }
 
