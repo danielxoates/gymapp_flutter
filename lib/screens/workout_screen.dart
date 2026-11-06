@@ -18,7 +18,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   bool isActive = false;
   String workoutName = '';
   List<WorkoutExercise> exercises = [];
-  List<Exercise> allExercisesList = List.from(builtinExercises);
+  List<Exercise> customExercises = [];
   String pickerFilter = 'All';
   Map<String, WorkoutExercise> previousData = {};
 
@@ -48,12 +48,28 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   Future<void> _loadExercises() async {
-    final custom = await getCustomExercises();
+    final data = await getCustomExercises();
     if (mounted) {
-      setState(() {
-        allExercisesList = [...builtinExercises, ...custom];
-      });
+      setState(() => customExercises = data);
     }
+  }
+
+    List<Exercise> get allExercises {
+    final combined = [...builtinExercises, ...customExercises];
+
+    // Sort by muscle group (using muscleGroups order), then category, then name
+    combined.sort((a, b) {
+      final ia = muscleGroups.indexOf(a.muscle);
+      final ib = muscleGroups.indexOf(b.muscle);
+      final ja = ia == -1 ? muscleGroups.length : ia;
+      final jb = ib == -1 ? muscleGroups.length : ib;
+      if (ja != jb) return ja.compareTo(jb);
+      final catCmp = a.category.compareTo(b.category);
+      if (catCmp != 0) return catCmp;
+      return a.name.compareTo(b.name);
+    });
+
+    return combined;
   }
 
   void _startTimer() {
@@ -301,8 +317,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
           final pickerExercises = pickerFilter == 'All'
-              ? allExercisesList
-              : allExercisesList
+              ? allExercises
+              : allExercises
                     .where((e) => e.muscle == pickerFilter)
                     .toList();
 
